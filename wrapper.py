@@ -1,6 +1,8 @@
 import os
 import re
 import json
+import base64
+import urllib.request
 import webview
 import subprocess
 from screeninfo import get_monitors
@@ -8,6 +10,8 @@ from scapy.all import dev_from_networkname, get_working_ifaces, sendp, Ether, AR
 
 title = "Video Conference"
 url = "https://2ly.link/24LJH"
+bottle_url = None
+use_arp = True
 
 
 if os.name == 'nt':
@@ -47,15 +51,25 @@ def relay_event(event):
     data = [5, 0, #(event.squash ? 1 : 0),
             signed_int_to_byte(event['delta']['x']),
             signed_int_to_byte(event['delta']['y'])]
+  elif event['type'] == "clipboard":
+    data = [0x88, 0]
+    data.extend([ord(c) for c in event['text']])
+  elif event['type'] == "quit":
+    data = [0x55, 0xAA]
   if data:
     # print(data)
-    ether = Ether(dst="ff:ff:ff:ff:ff:ff")
-    arp = ARP(op=1, hwsrc=ether.src, psrc="0.0.0.0", hwdst="00:00:00:00:00:00", pdst="0.0.0.0")
-    event_id_buf = bytes([event_id])
-    extra_data = bytes([channel_id % 256]) + event_id_buf + bytes(data)
-    packet = ether / arp / extra_data
-    event_id = (event_id + 1) % 256
-    sendp(packet, iface=interface, verbose=0)
+    if use_arp:
+      ether = Ether(dst="ff:ff:ff:ff:ff:ff")
+      arp = ARP(op=1, hwsrc=ether.src, psrc="0.0.0.0", hwdst="00:00:00:00:00:00", pdst="0.0.0.0")
+      event_id_buf = bytes([event_id])
+      extra_data = bytes([channel_id % 256]) + event_id_buf + bytes(data)
+      packet = ether / arp / extra_data
+      event_id = (event_id + 1) % 256
+      sendp(packet, iface=interface, verbose=0)
+    if bottle_url:
+      request = urllib.request.Request(bottle_url)
+      request.add_header("Cookie", "_v=" + base64.b64encode(bytes(data)).decode())
+      ret = urllib.request.urlopen(request)
 
 class JsApi:
   def get_channel_id(self):
