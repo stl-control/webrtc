@@ -52,7 +52,7 @@ def relay_event(event):
             signed_int_to_byte(event['delta']['x']),
             signed_int_to_byte(event['delta']['y'])]
   elif event['type'] == "clipboard":
-    data = [0x88, 0]
+    data = [0x88, event['mode'] if 'mode' in event else 0]
     data.extend([ord(c) for c in event['text']])
   elif event['type'] == "quit":
     data = [0x55, 0xAA]
