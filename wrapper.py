@@ -118,7 +118,7 @@ class JsApi:
   def handle_interface_select(self, iface):
     global interface_name, interface
     interface_name = iface
-    interface = dev_from_networkname(iface)
+    interface = dev_from_networkname(iface) if iface else None
   
   def handle_screen_select(self, index):
     global screen
